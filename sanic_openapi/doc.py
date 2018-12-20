@@ -200,6 +200,7 @@ class RouteSpec(object):
     blueprint = None
     tags = None
     exclude = None
+    status = None
 
     def __init__(self):
         self.tags = []
@@ -292,4 +293,16 @@ def tag(name):
     def inner(func):
         route_specs[func].tags.append(name)
         return func
+    return inner
+
+
+def status(code: int, description: str, example=None):
+    def inner(func):
+        if route_specs[func].status is None:
+            route_specs[func].status = {}
+        route_specs[func].status[code] = {
+            'description': description
+        }
+        if example is not None:
+            route_specs[func].status[code]['example'] = example
     return inner

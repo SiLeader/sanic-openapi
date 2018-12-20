@@ -126,11 +126,8 @@ def build_spec(app, loop):
                 'tags': route_spec.tags or None,
                 'parameters': route_parameters,
                 'responses': {
-                    "200": {
-                        "description": None,
-                        "examples": None,
-                        "schema": serialize_schema(route_spec.produces) if route_spec.produces else None
-                    }
+                    code: content
+                    for code, content in route_specs.status.items()
                 },
             })
 
