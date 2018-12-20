@@ -6,6 +6,7 @@ from sanic.response import json
 from sanic.views import CompositionView
 
 from .doc import route_specs, RouteSpec, serialize_schema, definitions
+import inspect
 
 
 blueprint = Blueprint('openapi', url_prefix='openapi')
@@ -78,22 +79,29 @@ def build_spec(app, loop):
             if _method == 'OPTIONS' or route_spec.exclude:
                 continue
 
-            consumes_content_types = route_spec.consumes_content_type or \
+            consumes_content_types = route_spec.consumes_content_type.get(_method) or \
                 getattr(app.config, 'API_CONSUMES_CONTENT_TYPES', ['application/json'])
-            produces_content_types = route_spec.produces_content_type or \
+            produces_content_types = route_spec.produces_content_type.get(_method) or \
                 getattr(app.config, 'API_PRODUCES_CONTENT_TYPES', ['application/json'])
 
             # Parameters - Path & Query String
             route_parameters = []
             for parameter in route.parameters:
+                document = inspect.getdoc(_handler)
+                match = re.search("\\s*:\\s*param\\s+{}\\s*:\\s*(\\S*)".format(parameter.name), document)
+                if match is not None:
+                    desc = match.group(1)
+                else:
+                    desc = ""
                 route_parameters.append({
                     **serialize_schema(parameter.cast),
                     'required': True,
                     'in': 'path',
-                    'name': parameter.name
+                    'name': parameter.name,
+                    'description': desc
                 })
 
-            for consumer in route_spec.consumes:
+            for consumer in route_spec.consumes.get(_method) or []:
                 spec = serialize_schema(consumer.field)
                 if 'properties' in spec:
                     for name, prop_spec in spec['properties'].items():
@@ -117,6 +125,15 @@ def build_spec(app, loop):
 
                 route_parameters.append(route_param)
 
+            if route_spec.status is None:
+                route_spec.status = {200: {'description': 'OK'}}
+
+            status = sorted(route_spec.status.items())
+            status = {
+                s: d
+                for s, d in status
+            }
+
             endpoint = remove_nulls({
                 'operationId': route_spec.operation or route.name,
                 'summary': route_spec.summary,
@@ -127,7 +144,7 @@ def build_spec(app, loop):
                 'parameters': route_parameters,
                 'responses': {
                     code: content
-                    for code, content in route_specs.status.items()
+                    for code, content in (status[_method] if status.get(_method) else {}).items()
                 },
             })
 

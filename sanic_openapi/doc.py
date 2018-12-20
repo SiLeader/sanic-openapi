@@ -1,6 +1,6 @@
 from collections import defaultdict
 from datetime import date, datetime
-
+import inspect
 
 class Field:
     def __init__(self, description=None, required=None, name=None, choices=None):
@@ -204,7 +204,10 @@ class RouteSpec(object):
 
     def __init__(self):
         self.tags = []
-        self.consumes = []
+        self.consumes = {}
+        self.consumes_content_type = {}
+        self.produces = {}
+        self.produces_content_type = {}
         super().__init__()
 
 
@@ -263,28 +266,26 @@ def summary(text):
 
 def description(text):
     def inner(func):
+        document = inspect.getdoc(func)
+        print(document)
         route_specs[func].description = text
         return func
     return inner
 
 
-def consumes(*args, content_type=None, location='query', required=False):
+def consumes(*args, content_type=None, location='query', required=False, methods=None):
+    if methods is None:
+        methods = []
+
     def inner(func):
         if args:
             for arg in args:
                 field = RouteField(arg, location, required)
-                route_specs[func].consumes.append(field)
-                route_specs[func].consumes_content_type = content_type
-        return func
-    return inner
-
-
-def produces(*args, content_type=None):
-    def inner(func):
-        if args:
-            field = RouteField(args[0])
-            route_specs[func].produces = field
-            route_specs[func].produces_content_type = content_type
+                for m in methods:
+                    if m not in route_specs[func].consumes:
+                        route_specs[func].consumes[m] = []
+                    route_specs[func].consumes[m].append(field)
+                    route_specs[func].consumes_content_type[m] = content_type
         return func
     return inner
 
@@ -296,13 +297,22 @@ def tag(name):
     return inner
 
 
-def status(code: int, description: str, example=None):
+def status(code: int, description: str, return_type, content_type=None, methods=None, example=None):
+    if methods is None:
+        methods = ['GET', 'POST', 'PUT', 'DELETE']
+
     def inner(func):
         if route_specs[func].status is None:
             route_specs[func].status = {}
-        route_specs[func].status[code] = {
-            'description': description
-        }
-        if example is not None:
-            route_specs[func].status[code]['example'] = example
+        for method in methods:
+            if method not in route_specs[func].status:
+                route_specs[func].status[method] = {}
+            route_specs[func].status[method][code] = {
+                'description': description,
+                'schema': serialize_schema(RouteField(return_type).field)
+            }
+            route_specs[func].produces_content_type[method] = content_type
+            if example is not None:
+                route_specs[func].status[method][code]['example'] = example
+        return func
     return inner
