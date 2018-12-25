@@ -88,11 +88,14 @@ def build_spec(app, loop):
             route_parameters = []
             for parameter in route.parameters:
                 document = inspect.getdoc(_handler)
-                match = re.search("\\s*:\\s*param\\s+{}\\s*:\\s*(\\S*)".format(parameter.name), document)
-                if match is not None:
-                    desc = match.group(1)
+                if document is not None:
+                    match = re.search("\\s*:\\s*param\\s+{}\\s*:\\s*(\\S*)".format(parameter.name), document)
+                    if match is not None:
+                        desc = match.group(1)
+                    else:
+                        desc = ""
                 else:
-                    desc = ""
+                    desc = ''
                 route_parameters.append({
                     **serialize_schema(parameter.cast),
                     'required': True,
