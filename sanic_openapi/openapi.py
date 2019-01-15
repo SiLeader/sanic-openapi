@@ -114,6 +114,8 @@ def build_spec(app, loop):
                             'in': consumer.location,
                             'name': name
                         }
+                        if consumer.description is not None:
+                            route_param['description'] = consumer.description
                 else:
                     route_param = {
                         **spec,
@@ -121,6 +123,8 @@ def build_spec(app, loop):
                         'in': consumer.location,
                         'name': consumer.field.name if hasattr(consumer.field, 'name') else 'body'
                     }
+                    if consumer.description is not None:
+                        route_param['description'] = consumer.description
 
                 if '$ref' in route_param:
                     route_param["schema"] = {'$ref': route_param['$ref']}

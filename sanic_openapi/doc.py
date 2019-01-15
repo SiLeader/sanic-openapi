@@ -216,10 +216,11 @@ class RouteField(object):
     location = None
     required = None
 
-    def __init__(self, field, location=None, required=False):
+    def __init__(self, field, location=None, required=False, description=None):
         self.field = field
         self.location = location
         self.required = required
+        self.description = description
 
 
 route_specs = defaultdict(RouteSpec)
@@ -273,14 +274,14 @@ def description(text):
     return inner
 
 
-def consumes(*args, content_type=None, location='query', required=False, methods=None):
+def consumes(*args, description=None, content_type=None, location='query', required=False, methods=None):
     if methods is None:
         methods = []
 
     def inner(func):
         if args:
             for arg in args:
-                field = RouteField(arg, location, required)
+                field = RouteField(arg, location, required, description)
                 for m in methods:
                     if m not in route_specs[func].consumes:
                         route_specs[func].consumes[m] = []
